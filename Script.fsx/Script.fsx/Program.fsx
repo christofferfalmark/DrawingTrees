@@ -1,6 +1,7 @@
 ﻿System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 
-#I @"C:\Users\Christoffer\Dropbox\DTU Master\3. Semester E16\02257 Applied functional programming\Project 2\Compiler\GuardedCommands\GuardedCommands"
+//#I @"C:\Users\Christoffer\Dropbox\DTU Master\3. Semester E16\02257 Applied functional programming\Project 2\Compiler\GuardedCommands\GuardedCommands"
+#I @"..\..\..\GuardedCommands\GuardedCommands"
 #r @"bin\Debug\FSharp.PowerPack.dll";;
 #r @"bin\Debug\Machine.dll";
 #r @"bin\Debug\VirtualMachine.dll";
@@ -70,5 +71,34 @@ let design tree =
 
 
 let l = parseFromFile "Ex5.gc"
+
+let rec exp = function
+    | N _ -> Node("N", [])
+    | B _ -> Node("B", [])
+    | Access _ ->  Node("Access", [])
+    | Addr _ -> Node("Addr", [])
+    | Apply(_, e) -> Node("Apply", List.map (fun x -> exp x) e)
+
+and Access = function   
+    | AVar _ -> Node("AVar", []) 
+    | AIndex (_, e) -> Node("AIndex", [exp e])
+    | ADeref e -> Node("ADeref", [exp e])
+and Stm = function
+    | PrintLn _ -> Node("PrintLn", [])
+    | Ass (_, e) -> Node("Ass", [exp e])
+    | Return(Some(e)) -> Node("Return", [exp e])
+    | Call(_, e) -> Node("Call", List.map(fun x -> exp x) e)
+    | Block([], stms) -> Node("Block", List.map(fun x -> Stm x) stms)
+    | Block(decs, stms) -> Node("Block", (List.map(fun x -> Stm x) stms) @ (List.map(fun x -> Stm x) stms))     // Ændre sidste Stm til Dec...
+and Dec = function
+    | VarDec(t,_) -> Node("VarDec", )
+    | FunDec(t,_) -> 
+and Type = function
+    | ITyp -> Node("int")
+    | BTyp -> Node("bool")
+    | ATyp  
+    | PTyp of Typ                   (* Type pointer                *)
+    | FTyp of Typ list * Typ option (* Type function and procedure *)
+
 // TODO create function to convert l to the type 'a Tree
 // let d = design l
