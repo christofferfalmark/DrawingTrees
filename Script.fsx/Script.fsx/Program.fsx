@@ -83,6 +83,7 @@ and AccessTree = function
     | AVar _ -> Node("AVar", []) 
     | AIndex (_, e) -> Node("AIndex", [ExpTree e])
     | ADeref e -> Node("ADeref", [ExpTree e])
+
 and StmTree = function
     | PrintLn _ -> Node("PrintLn", [])
     | Ass (_, e) -> Node("Ass", [ExpTree e])
@@ -90,14 +91,21 @@ and StmTree = function
     | Return(None) -> Node("Return", [])
     | Call(_, e) -> Node("Call", List.map(fun x -> ExpTree x) e)
     | Block([], stms) -> Node("Block", List.map(fun x -> StmTree x) stms)
-    | Block(decs, stms) -> Node("Block", (List.map(fun x -> StmTree x) stms) @ (List.map(fun x -> StmTree x) stms))     // Ændre sidste Stm til Dec...
+    | Block(decs, stms) -> Node("Block", (List.map(fun x -> StmTree x) stms) @ (List.map(fun x -> DecTree x) decs)) 
+    | Alt (gc) -> Node("Alt", GCTree gc)
+
 and TypeTree = function
     | ITyp              -> Node("int", [])
     | BTyp              -> Node("bool", [])
     | ATyp(t, _)        -> Node("ATyp", [TypeTree t])
     | PTyp(t)           -> Node("PTyp", [TypeTree t])
     | FTyp(tl, Some(t)) -> Node("FTyp", List.map (fun x -> TypeTree x) tl @ [TypeTree t])
+
 and DecTree = function
     | VarDec(t,_) -> Node("VarDec", [TypeTree t])
     | FunDec(Some(t),_, decl, stm) -> Node("FunDec", List.map (fun x -> DecTree x) decl @ [StmTree stm])
     | FunDec(None, _, _, _) -> Node("FunDec", [])
+
+and GCTree = function
+    | GC((e:Exp, s:Stm list)::l) -> [(ExpTree e)] @ (List.map(fun x -> StmTree x) s)
+    | _ -> []
