@@ -72,33 +72,32 @@ let design tree =
 
 let l = parseFromFile "Ex5.gc"
 
-let rec exp = function
+let rec ExpTree = function
     | N _ -> Node("N", [])
     | B _ -> Node("B", [])
     | Access _ ->  Node("Access", [])
     | Addr _ -> Node("Addr", [])
-    | Apply(_, e) -> Node("Apply", List.map (fun x -> exp x) e)
+    | Apply(_, e) -> Node("Apply", List.map (fun x -> ExpTree x) e)
 
-and Access = function   
+and AccessTree = function   
     | AVar _ -> Node("AVar", []) 
-    | AIndex (_, e) -> Node("AIndex", [exp e])
-    | ADeref e -> Node("ADeref", [exp e])
-and Stm = function
+    | AIndex (_, e) -> Node("AIndex", [ExpTree e])
+    | ADeref e -> Node("ADeref", [ExpTree e])
+and StmTree = function
     | PrintLn _ -> Node("PrintLn", [])
-    | Ass (_, e) -> Node("Ass", [exp e])
-    | Return(Some(e)) -> Node("Return", [exp e])
-    | Call(_, e) -> Node("Call", List.map(fun x -> exp x) e)
-    | Block([], stms) -> Node("Block", List.map(fun x -> Stm x) stms)
-    | Block(decs, stms) -> Node("Block", (List.map(fun x -> Stm x) stms) @ (List.map(fun x -> Stm x) stms))     // Ændre sidste Stm til Dec...
-and Dec = function
-    | VarDec(t,_) -> Node("VarDec", )
-    | FunDec(t,_) -> 
-and Type = function
-    | ITyp -> Node("int")
-    | BTyp -> Node("bool")
-    | ATyp  
-    | PTyp of Typ                   (* Type pointer                *)
-    | FTyp of Typ list * Typ option (* Type function and procedure *)
-
-// TODO create function to convert l to the type 'a Tree
-// let d = design l
+    | Ass (_, e) -> Node("Ass", [ExpTree e])
+    | Return(Some(e)) -> Node("Return", [ExpTree e])
+    | Return(None) -> Node("Return", [])
+    | Call(_, e) -> Node("Call", List.map(fun x -> ExpTree x) e)
+    | Block([], stms) -> Node("Block", List.map(fun x -> StmTree x) stms)
+    | Block(decs, stms) -> Node("Block", (List.map(fun x -> StmTree x) stms) @ (List.map(fun x -> StmTree x) stms))     // Ændre sidste Stm til Dec...
+and TypeTree = function
+    | ITyp              -> Node("int", [])
+    | BTyp              -> Node("bool", [])
+    | ATyp(t, _)        -> Node("ATyp", [TypeTree t])
+    | PTyp(t)           -> Node("PTyp", [TypeTree t])
+    | FTyp(tl, Some(t)) -> Node("FTyp", List.map (fun x -> TypeTree x) tl @ [TypeTree t])
+and DecTree = function
+    | VarDec(t,_) -> Node("VarDec", [TypeTree t])
+    | FunDec(Some(t),_, decl, stm) -> Node("FunDec", List.map (fun x -> DecTree x) decl @ [StmTree stm])
+    | FunDec(None, _, _, _) -> Node("FunDec", [])
