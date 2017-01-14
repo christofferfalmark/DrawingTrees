@@ -93,6 +93,7 @@ and StmTree = function
     | Block([], stms) -> Node("Block", List.map(fun x -> StmTree x) stms)
     | Block(decs, stms) -> Node("Block", (List.map(fun x -> StmTree x) stms) @ (List.map(fun x -> DecTree x) decs)) 
     | Alt (gc) -> Node("Alt", GCTree gc)
+    | Do (gc) -> Node("Alt", GCTree gc)
 
 and TypeTree = function
     | ITyp              -> Node("int", [])
@@ -100,6 +101,7 @@ and TypeTree = function
     | ATyp(t, _)        -> Node("ATyp", [TypeTree t])
     | PTyp(t)           -> Node("PTyp", [TypeTree t])
     | FTyp(tl, Some(t)) -> Node("FTyp", List.map (fun x -> TypeTree x) tl @ [TypeTree t])
+    | FTyp(tl, None) -> Node("FTyp", List.map (fun x -> TypeTree x) tl)
 
 and DecTree = function
     | VarDec(t,_) -> Node("VarDec", [TypeTree t])
