@@ -1,8 +1,8 @@
 ﻿
 System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 
-//#I @"C:\Users\Christoffer\Dropbox\DTU Master\3. Semester E16\02257 Applied functional programming\Project 2\Compiler\GuardedCommands\GuardedCommands"
-#I @"..\..\..\GuardedCommands\GuardedCommands"
+#I @"C:\Users\Christoffer\Dropbox\DTU Master\3. Semester E16\02257 Applied functional programming\Project 2\Compiler\GuardedCommands\GuardedCommands"
+//#I @"..\..\..\GuardedCommands\GuardedCommands"
 #r @"bin\Debug\FSharp.PowerPack.dll";;
 #r @"bin\Debug\Machine.dll";
 #r @"bin\Debug\VirtualMachine.dll";
@@ -149,11 +149,27 @@ and subTree = function
                                                      printTree level (Node((s, pos+parent), subtree)) +
                                                      subTree(l, level, parent)
 
+
+let moveToCon level pos = String.concat "" (seq[string((pos*width) + fst root); " "; string(snd root - (level * height)) ; " moveto\n"])
+let printLabelCon level pos s = String.concat "" (seq[(moveToCon level pos); "("; s; ") dup stringwidth pop 2 div neg 0 rmoveto show\n"])
+let doActionCon x y action = String.concat "" (seq[" "; string x; " "; string y; " "; string action; "\n"])
+
+let rec printTreeCon (level) = function
+    | Node((s, pos), [])        -> String.concat "" (seq["stroke\n"; printLabelCon level pos s])
+    | Node((s, pos), subtrees)  -> String.concat "" (seq["stroke\n"; printLabelCon level pos s; subTreeCon(subtrees, level+1.0, pos)])
+and subTreeCon = function
+    | ([], level, pos) -> ""
+    | (Node((s, pos), subtree)::l, level, parent)  ->  let (px,py) = coordinate parent (level-1.0)
+                                                       let (x, y) = coordinate (pos+parent) level
+                                                       let sq = (seq[doActionCon px (py-padding) "moveto"; doActionCon px (py-20.0) "lineto"; doActionCon x (py-20.0) "lineto"; doAction x (py-30.0) "lineto"; 
+                                                                        printTreeCon level (Node((s, pos+parent), subtree)); subTreeCon (l, level, parent)])
+                                                       String.concat "" sq
+
 let header = "%!\n<</PageSize[1400 1000]/ImagingBBox null>> setpagedevice\n1 1 scale\n700 999 translate\nnewpath\n/Times-Roman findfont 10 scalefont setfont\n"
-
 let PSFileWrite path tree = File.WriteAllText (path, header + (printTree 1.0 tree) + "\nshowpage");;
-PSFileWrite "fact.ps" (design (pToTree (parseFromFile "fact.gc")))
-
-
-
+let PSFileWriteCon path tree = File.WriteAllText (path, header + ((printTreeCon 1.0 tree)) + "\nshowpage");;
+#time "on";;
+PSFileWrite "1a_ex0.ps" (design (pToTree (parseFromFile "Ex0.gc")))
+#time "on";;
+PSFileWriteCon "1b_ex0.ps" (design (pToTree (parseFromFile "Ex0.gc")))
 
