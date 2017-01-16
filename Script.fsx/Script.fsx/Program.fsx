@@ -1,4 +1,5 @@
-﻿System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
+﻿
+System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 
 //#I @"C:\Users\Christoffer\Dropbox\DTU Master\3. Semester E16\02257 Applied functional programming\Project 2\Compiler\GuardedCommands\GuardedCommands"
 #I @"..\..\..\GuardedCommands\GuardedCommands"
@@ -34,7 +35,6 @@ let rec merge = function
     | ([], qs) -> qs
     | ((p,_)::ps, (_,q)::qs) -> (p,q)::merge(ps, qs)
 
-// rewrite or something!
 let mergelist es = List.fold (fun acc e -> merge (acc, e)) [] es ;;
 
 let rmax (p : float, q : float) = if p > q then p else q
@@ -84,11 +84,11 @@ and AccessTree = function
     | ADeref e -> Node("ADeref", [ExpTree e])
 
 and StmTree = function
-    | PrintLn _ -> Node("PrintLn", [])
+    | PrintLn e -> Node("PrintLn", [ExpTree e])
     | Ass (a, e) -> Node("Ass", [AccessTree a] @ [ExpTree e])
     | Return(Some(e)) -> Node("Return", [ExpTree e])
     | Return(None) -> Node("Return", [])
-    | Call(_, e) -> Node("Call", List.map(fun x -> ExpTree x) e)
+    | Call(s, e) -> Node("Apply", [Node(s, [])] @ List.map (fun x -> ExpTree x) e)
     | Block([], stms) -> Node("Block", List.map(fun x -> StmTree x) stms)
     | Block(decs, stms) -> Node("Block", (List.map(fun x -> StmTree x) stms) @ (List.map(fun x -> DecTree x) decs)) 
     | Alt (gc) -> Node("Alt", GCTree gc)
@@ -111,144 +111,49 @@ and GCTree = function
     | GC((e:Exp, s:Stm list)::l) -> [Node("GC", [(ExpTree e)] @ (List.map(fun x -> StmTree x) s))]
     | _ -> []
 
-
-and decListToTree ds  = 
-    match ds with
+and decListToTree = function
     | []       -> []
-    | d::drest -> (DecTree d) :: decListToTree drest
+    | d::dl-> (DecTree d) :: decListToTree dl
 
-and stmListToTree stm = 
-    match stm with
+and stmListToTree = function
     | []       -> []
-    | s::srest -> (StmTree s) :: stmListToTree srest
+    | s::sl -> (StmTree s) :: stmListToTree sl
 
 and pToTree (P(decs,stms):Program) = Node("P", decListToTree decs @ stmListToTree stms)
 
-let lineHeight = 50.0;;
-let lineWidth  = 60.0;;
+let height = 50.0
+let padding = 10.0
+let width = 50.0
+let root = (0.0, 0.0)
 
-let rootx = 600.0;;
-let rooty = 800.0;;
+let coordinate pos level = ((pos * width) + fst root, snd root - (level * height))
 
-let labelpadding = 10.0;
+let moveTo level pos = string((pos * width) + fst root) + " " + string(snd root - (level * height)) + " moveto\n"
 
-let labelToPSString label = "("+ label + ") dup stringwidth pop 2 div neg 0 rmoveto show";
+let printLabel level pos s = (moveTo level pos) + "("+ s + ") dup stringwidth pop 2 div neg 0 rmoveto show" + "\n"
 
+let doAction x y action = string x + " " + string y + " " + action + "\n"
 
-let rec treePrint node level = 
-  match node with 
-  | Node ((label, reflPos),[])      -> let (abs_x, abs_y) = (absoluteOffset level reflPos)
-                                       (string abs_x) + " " + (string abs_y) + " moveto\n" +
-                                        (labelToPSString label) + "\n"
-  | Node ((label, reflPos),subtree) -> let (abs_x, abs_y) = (absoluteOffset level reflPos)
-                                       (string abs_x) + " " + (string abs_y) + " moveto\n" +
-                                       (labelToPSString label) + "\n" +
-                                       subtreePrint (subtree,level+1.0, reflPos)
-and absoluteOffset level reflectPos = ((reflectPos * lineWidth) + rootx), (rooty - (level * lineHeight))
-and subtreePrint = function
-  | [],level,parentReflPos                                  -> ""
-  | Node ((label, reflPos),subtree)::rest,level,parentReflPos -> let (abs_par_x, abs_par_y) = (absoluteOffset (level-1.0) parentReflPos)
-                                                                 let (abs_x, abs_y) = (absoluteOffset level (reflPos+parentReflPos))
-                                                                 let abs_x1 = abs_par_x + (reflPos*lineWidth)
-                                                                 string (abs_par_x) + " " + string (abs_par_y-labelpadding) + " moveto\n" +
-                                                                 string (abs_x1)     + " " + string (abs_par_y-labelpadding)     + " lineto\n" +
-                                                                 string (abs_x1)     + " " + string (abs_y+labelpadding)     + " lineto\n" +
-                                                                 " stroke\n" + 
-                                                                 treePrint (Node ((label, reflPos+parentReflPos),subtree)) level + 
-                                                                 subtreePrint (rest,level,parentReflPos);;
+let rec printTree level = function
+    | Node((s, pos), [])        -> "stroke\n" + (printLabel level pos s)
+    | Node((s, pos), subtrees)  -> "stroke\n" + (printLabel level pos s) +
+                                   subTree(subtrees, level+1.0, pos)
+and subTree = function
+    | ([], level, pos) -> ""
+    | (Node((s, pos), subtree)::l, level, parent) -> let (px,py) = coordinate parent (level-1.0)
+                                                     let (x, y) = coordinate (pos+parent) level
+                                                     doAction px (py-padding) "moveto" + 
+                                                     doAction px (py-20.0) "lineto" +
+                                                     doAction x (py-20.0) "lineto" +
+                                                     doAction x (py-30.0) "lineto" + 
+                                                     printTree level (Node((s, pos+parent), subtree)) +
+                                                     subTree(l, level, parent)
 
+let header = "%!\n<</PageSize[1400 1000]/ImagingBBox null>> setpagedevice\n1 1 scale\n700 999 translate\nnewpath\n/Times-Roman findfont 10 scalefont setfont\n"
 
-
-let labelToPSStringSB (builder : StringBuilder) (label : string) = builder.Append "(" 
-                                                                   builder.Append label 
-                                                                   builder.Append ") dup stringwidth pop 2 div neg 0 rmoveto show"
-                                                                   builder;;
-
-let treePrintSB' tree = 
-    let rec treePrintSB node level (sb : StringBuilder) =
-        match node with 
-        | Node ((label, reflPos),[])      -> let (abs_x, abs_y) = (absoluteOffsetSB level reflPos)
-                                             sb.Append (string abs_x)
-                                             sb.Append " " 
-                                             sb.Append (string abs_y)
-                                             sb.Append " moveto\n"
-                                             let sb2 = (labelToPSStringSB sb label) 
-                                             sb2.Append "\n"
-                                             sb2
-        | Node ((label, reflPos),subtree) -> let (abs_x, abs_y) = (absoluteOffset level reflPos)
-                                             sb.Append (string abs_x) 
-                                             sb.Append " " 
-                                             sb.Append (string abs_y) 
-                                             sb.Append " moveto\n" 
-                                             let sb2 = (labelToPSStringSB sb label) 
-                                             sb2.Append "\n" 
-                                             let sb3 = (subtreePrintSB (subtree,level+1.0, reflPos, sb2))
-                                             sb3
-    and absoluteOffsetSB level reflectPos = ((reflectPos * lineWidth) + rootx), (rooty - (level * lineHeight))
-    and subtreePrintSB = function
-      | [],level,parentReflPos, sb                                  -> sb
-      | Node ((label, reflPos),subtree)::rest,level,parentReflPos, sb -> let (abs_par_x, abs_par_y) = (absoluteOffsetSB (level-1.0) parentReflPos)
-                                                                         let (abs_x, abs_y) = (absoluteOffsetSB level (reflPos+parentReflPos))
-                                                                         let abs_x1 = abs_par_x + (reflPos*lineWidth)
-                                                                         sb.Append (string (abs_par_x))
-                                                                         sb.Append " " 
-                                                                         sb.Append (string (abs_par_y-labelpadding)) 
-                                                                         sb.Append " moveto\n" 
-                                                                         sb.Append (string (abs_x1))
-                                                                         sb.Append " " 
-                                                                         sb.Append (string (abs_par_y-labelpadding))
-                                                                         sb.Append " lineto\n" 
-                                                                         sb.Append (string (abs_x1))
-                                                                         sb.Append " " 
-                                                                         sb.Append (string (abs_y+labelpadding))
-                                                                         sb.Append " lineto\n" 
-                                                                         sb.Append " stroke\n" 
-                                                                         let sb2 = (treePrintSB (Node ((label, reflPos+parentReflPos),subtree)) level sb)
-                                                                         let sb3 = (subtreePrintSB (rest,level,parentReflPos, sb2))
-                                                                         sb3
-    let sb = StringBuilder()
-    let result = treePrintSB tree 1.0 sb
-    result.ToString();;
+let PSFileWrite path tree = File.WriteAllText (path, header + (printTree 1.0 tree) + "\nshowpage");;
+PSFileWrite "fact.ps" (design (pToTree (parseFromFile "fact.gc")))
 
 
-let labelToPSStringCon label = let strings = seq["("; label; ") dup stringwidth pop 2 div neg 0 rmoveto show"]
-                               String.concat "" strings;;
 
 
-let rec treePrintCon node level = 
-  match node with 
-  | Node ((label, reflPos),[])      -> let (abs_x, abs_y) = (absoluteOffsetCon level reflPos)
-                                       let strings = seq[(string abs_x); " "; (string abs_y); " moveto\n";
-                                                         (labelToPSStringCon label); "\n"]
-                                       String.concat "" strings
-  | Node ((label, reflPos),subtree) -> let (abs_x, abs_y) = (absoluteOffsetCon level reflPos)
-                                       let strings = seq[(string abs_x); " "; (string abs_y); " moveto\n";
-                                                         (labelToPSStringCon label); "\n";
-                                                          subtreePrintCon (subtree,level+1.0, reflPos)];
-                                       String.concat "" strings
-and absoluteOffsetCon level reflectPos = ((reflectPos * lineWidth) + rootx), (rooty - (level * lineHeight))
-and subtreePrintCon = function
-  | [],level,parentReflPos                                  -> ""
-  | Node ((label, reflPos),subtree)::rest,level,parentReflPos -> let (abs_par_x, abs_par_y) = (absoluteOffsetCon (level-1.0) parentReflPos)
-                                                                 let (abs_x, abs_y) = (absoluteOffset level (reflPos+parentReflPos))
-                                                                 let abs_x1 = abs_par_x + (reflPos*lineWidth)
-                                                                 let strings = seq[string (abs_par_x); " "; string (abs_par_y-labelpadding);
-                                                                                 " moveto\n"; string (abs_x1); " "; string (abs_par_y-labelpadding);
-                                                                                 " lineto\n"; string (abs_x1); " "; string (abs_y+labelpadding);
-                                                                                 " lineto\n"; " stroke\n"; 
-                                                                                 treePrintCon (Node ((label, reflPos+parentReflPos),subtree)) level;
-                                                                                 subtreePrintCon (rest,level,parentReflPos)]
-                                                                 let result = String.concat "" strings
-                                                                 // printf "%s\n" result
-                                                                 result;;
-
-let PSheader = "%!PS\n0.5 0.5 scale /Courier\n10 selectfont\n";;
-let PSfooter = "showpage";;
-
-
-let PSFileWrite path tree = File.WriteAllText (path, PSheader + (treePrint tree 1.0) + PSfooter);;
-let PSFileWriteSB path tree = File.WriteAllText (path, PSheader + (treePrintSB' tree) + PSfooter);;
-let PSFileWriteCon path tree = File.WriteAllText (path, PSheader + (treePrintCon tree 1.0) + PSfooter);;
-
-let l = parseFromFile "Ex5.gc"
-PSFileWrite "1_ArrayProg1.ps" (design (pToTree l));;
