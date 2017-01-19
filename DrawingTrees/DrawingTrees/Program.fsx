@@ -1,8 +1,8 @@
 ﻿
 System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 
-#I @"C:\Users\Christoffer\Dropbox\DTU Master\3. Semester E16\02257 Applied functional programming\Project 2\Compiler\GuardedCommands\GuardedCommands"
-//#I @"..\..\..\GuardedCommands\GuardedCommands"
+// Path to the previous project, guardedcommands
+#I @"..\..\..\GuardedCommands\GuardedCommands"
 #r @"bin\Debug\FSharp.PowerPack.dll";;
 #r @"bin\Debug\Machine.dll";
 #r @"bin\Debug\VirtualMachine.dll";
@@ -21,6 +21,9 @@ open ParserUtil
 open CompilerUtil
 open System.Text
 open System.IO
+
+// PS storage
+if not (Directory.Exists "ps") then (Directory.CreateDirectory "ps") |> ignore
 
 type 'a Tree = Node of ('a * 'a Tree list);;
 type Extent = (float*float) list;;
@@ -176,12 +179,43 @@ and subTreeConcat = function
                                                                    printTreeConcat level (Node((s, pos+parent), subtree)); subTreeConcat (l, level, parent)]
                                                        String.concat "" strs
 
-let header = "%!\n<</PageSize[1400 1000]/ImagingBBox null>> setpagedevice\n1 1 scale\n700 999 translate\nnewpath\n/Times-Roman findfont 10 scalefont setfont\n"
+// Generate tree of size x for testing purposes
+let generator x = let list = Array.init (x) (fun i -> Node((string i), []))
+                  Node("Root", Array.toList list)
+
+let header = "%!\n<</PageSize[1600 1000]/ImagingBBox null>> setpagedevice\n1 1 scale\n800 999 translate\nnewpath\n/Times-Roman findfont 10 scalefont setfont\n"
 
 let writeToPS path tree = File.WriteAllText (path,  header + (printTree 1.0 tree) + "\nshowpage");;
 let writeToPSConcat path tree = File.WriteAllText (path, String.concat "" [header; ((printTreeConcat 1.0 tree)); "\nshowpage"]);;
-#time "on";;
-writeToPS "1a_ex0.ps" (design (pToTree (parseFromFile "Ex0.gc")))
-#time "on";;
-writeToPSConcat "1b_ex0.ps" (design (pToTree (parseFromFile "Ex0.gc")))
 
+// The programs that are supported
+let files = ["A0"; "A1";"A2";"A3";"Ex0";"Ex1";"Ex2";"Ex3";"Ex4";"Ex5";"Ex6";"Ex7";"fact"; "factCBV";"factRec";"Skip"]
+
+for a in files do
+    writeToPS ("ps/" + a + ".ps") (design (pToTree (parseFromFile (a + ".gc"))))
+
+//writeToPSConcat "ex7.ps" (design (pToTree (parseFromFile "Ex7.gc")))
+
+// Tests
+(*
+let elements = 5000
+printfn "startsie wartsie"
+#time "on";;
+writeToPS "ex7.ps" (design (generator elements))
+#time "off";;
+#time "on";;
+writeToPSConcat "ex7.ps" (design (generator elements))
+#time "off";;
+printfn "dones"
+
+#time "on";;
+printfn "begin"
+for a in ["A0.gc"; "A1.gc";"A2.gc";"A3.gc";"Ex0.gc";"Ex1.gc";"Ex2.gc";"Ex3.gc";"Ex4.gc";"Ex5.gc";"Ex6.gc";"Ex7.gc";"fact.gc"; "factCBV.gc";"factRec.gc";"Skip.gc"] do
+    for b in 0 .. 2 do
+        writeToPS (a + ".ps") (design (pToTree (parseFromFile a)))
+
+for a in ["A0.gc"; "A1.gc";"A2.gc";"A3.gc";"Ex0.gc";"Ex1.gc";"Ex2.gc";"Ex3.gc";"Ex4.gc";"Ex5.gc";"Ex6.gc";"Ex7.gc";"fact.gc"; "factCBV.gc";"factRec.gc";"Skip.gc"] do
+    for b in 1 .. 500 do
+        writeToPSConcat (a + ".ps") (design (pToTree (parseFromFile a)))
+printfn "end"
+*)
